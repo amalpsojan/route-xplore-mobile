@@ -1,6 +1,7 @@
 import React from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import MapView, { PROVIDER_DEFAULT, UrlTile } from "react-native-maps";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const OSM_TILE_TEMPLATE = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
@@ -13,9 +14,9 @@ const IndexScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <MapView
-        style={StyleSheet.absoluteFill}
+        style={{ flex: 1 }}
         initialRegion={initialRegion}
         provider={PROVIDER_DEFAULT}
         mapType="none"
@@ -35,39 +36,15 @@ const IndexScreen = () => {
           /* react-native-maps will automatically expand {s} across a,b,c */
         />
       </MapView>
-
-      {/* OSM attribution as required by ODbL */}
-      <View pointerEvents="none" style={styles.attributionContainer}>
-        <View style={styles.attributionBadge}>
-          {/* Keep text minimal to avoid overlapping content; users can tap through map unobstructed */}
-          <OSMAttribution />
-        </View>
-      </View>
-    </View>
+    </SafeAreaView>
   );
 };
-
-const OSMAttribution = () => {
-  return (
-    <View style={styles.attributionTextContainer}>
-      {/* Using simple Text keeps bundle small; links can be added if needed */}
-      <AttributionText />
-    </View>
-  );
-};
-
-import { Text } from "react-native";
-
-const AttributionText = () => (
-  <Text style={styles.attributionText}>
-    © OpenStreetMap contributors
-  </Text>
-);
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
+    paddingVertical: 18,
   },
   attributionContainer: {
     position: "absolute",
