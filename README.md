@@ -1,51 +1,113 @@
-# Welcome to your Expo app 👋
+## 🌍 RouteXplore — Mobile (Expo) Frontend
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Discover tourist spots along your journey.
 
-## Get started
+This is the React Native (Expo) frontend for RouteXplore. It pairs with the RouteXplore backend to let you paste a Google Maps route link, discover attractions along the way using open data, select what you like, and generate a shareable route link with waypoints.
 
-1. Install dependencies
+### ✨ What this app does
+- **Paste a Google Maps route link**
+- **Query attractions** along your route via the backend (Overpass API / Google Places as configured server‑side)
+- **Select places** you want to visit
+- **Generate** a Google Maps link with those places as waypoints
+- **Share or open** the route instantly in Google Maps
 
-   ```bash
-   npm install
-   ```
+### 🧱 Tech stack (Frontend)
+- **Expo 53** + **React Native 0.79**
+- **Expo Router** for file‑based navigation (`app/`)
+- **react-native-maps** with **OpenStreetMap tiles** (no Apple/Google basemap)
+- **@tanstack/react-query** for data fetching and caching
+- **axios** for HTTP requests
 
-2. Start the app
+### 📁 Project structure
+- `app/` — screens using Expo Router
+  - `_layout.tsx` — navigation stack
+  - `index.tsx` — map screen (OpenStreetMap via `UrlTile`)
+- `app.json` — Expo config
 
-   ```bash
-   npx expo start
-   ```
+### 🚀 Getting started
+1) Prerequisites
+- Node.js 18+
+- Yarn
+- Xcode (for iOS) / Android Studio (for Android)
+- Expo Go app (optional for device testing)
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
+2) Install dependencies
 ```bash
-npm run reset-project
+yarn install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+3) Configure environment
+- Set the backend base URL so the app can call the API. Use Expo public env vars (available at runtime):
+```bash
+# .env (loaded by Expo), or your shell env
+EXPO_PUBLIC_API_BASE_URL=https://your-backend.example.com
+```
 
-## Learn more
+Alternatively, add to `app.json` under `expo.extra`:
+```json
+{
+  "expo": {
+    "extra": {
+      "EXPO_PUBLIC_API_BASE_URL": "https://your-backend.example.com"
+    }
+  }
+}
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+4) Run the app
+```bash
+yarn start        # choose a platform in the Expo UI
+yarn ios          # iOS simulator
+yarn android      # Android emulator
+yarn web          # Web preview (map support is limited)
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### 🗺 Maps: OpenStreetMap only
+- The app uses `react-native-maps` with `mapType="none"` and an `UrlTile` pointing to OSM: `https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`.
+- **Attribution** is shown on-screen: “© OpenStreetMap contributors”. This is required by the ODbL license.
+- Production note: OSM’s public tile servers have a [Tile Usage Policy](https://operations.osmfoundation.org/policies/tiles/). For non‑trivial traffic you should use a commercial provider (e.g., MapTiler, Mapbox raster OSM) or host tiles yourself.
 
-## Join the community
+### 🔌 Backend integration
+The mobile app expects a backend that provides the following endpoints (paths may vary by deployment):
+- `GET /health` — Health check
+- `POST /api/parse-link` — Extract start, end, and optional waypoints from a Google Maps URL
+- `GET /api/places?start=...&end=...` — Fetch attractions between two points
+- `POST /api/generate-route` — Create a Google Maps link with optional waypoints
 
-Join our community of developers creating universal apps.
+Configure the base URL via `EXPO_PUBLIC_API_BASE_URL`. Typical flow in the app:
+1) User pastes a Google Maps link → call `/api/parse-link`
+2) Use parsed start/end to call `/api/places`
+3) User selects places → call `/api/generate-route`
+4) Present a shareable/openable Google Maps URL
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
-# route-xplore-mobile
+### ⚙️ Permissions
+- Location permissions are optional for browsing but recommended for a better UX (e.g., centering map). Expo handles the request flow; enable device location to test.
+- Android network access permission is required (enabled by default in Expo builds).
+
+### 🧪 Development tips
+- If tiles don’t render, ensure the device/emulator has internet access and the URL uses HTTPS.
+- Web support in `react-native-maps` is limited; prefer iOS/Android for map testing.
+- If OSM tiles load slowly, consider switching to a dedicated tile provider.
+
+### 🗺 Roadmap (Frontend)
+- Paste-link screen and validation
+- Attractions preview along the route with map markers
+- Selection UI and saved choices
+- Generate and share route link
+- Polishing: loading states, errors, offline hints
+
+### 🤝 Contributing
+1) Fork the repo
+2) Create a feature branch: `git checkout -b feature/new-feature`
+3) Commit: `git commit -m "Add new feature"`
+4) Push: `git push origin feature/new-feature`
+5) Open a Pull Request
+
+### 📜 License
+This project is licensed under the PolyForm Noncommercial License 1.0.0.
+
+- Non-commercial use: permitted under the license.
+- Commercial use: requires a commercial license. See `COMMERCIAL-LICENSE.md`.
+
+See `LICENSE` for the full text. Learn more on the PolyForm site: [PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0/)
+
