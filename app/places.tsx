@@ -1,4 +1,5 @@
 import { getRouteWithWaypoints } from "@/api/index";
+import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useRef, useState } from "react";
@@ -96,6 +97,28 @@ export default function PlacesScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.mapContainer}>
         <OpenStreetMap style={{ flex: 1 }} initialRegion={initialRegion} mapType="none" ref={mapRef}>
+          {Number.isFinite(start.latitude) && Number.isFinite(start.longitude) && (
+            <Marker
+              anchor={{ x: 0.5, y: 1 }}
+              coordinate={{ latitude: start.latitude as number, longitude: start.longitude as number }}
+              title="Start"
+            >
+              <View style={[styles.markerContainer, styles.markerStart]}>
+                <Ionicons name="navigate" size={18} color="#2e86de" />
+              </View>
+            </Marker>
+          )}
+          {Number.isFinite(end.latitude) && Number.isFinite(end.longitude) && (
+            <Marker
+              anchor={{ x: 0.5, y: 1 }}
+              coordinate={{ latitude: end.latitude as number, longitude: end.longitude as number }}
+              title="End"
+            >
+              <View style={[styles.markerContainer, styles.markerEnd]}>
+                <Ionicons name="location" size={18} color="#d63031" />
+              </View>
+            </Marker>
+          )}
           {samplePlaces.map((p) => (
             <Marker
               key={p.id}
@@ -145,6 +168,23 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     marginBottom: 12,
+  },
+  markerContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  markerStart: {
+    borderWidth: 1,
+    borderColor: "#2e86de",
+  },
+  markerEnd: {
+    borderWidth: 1,
+    borderColor: "#d63031",
   },
   listHeader: {
     flexDirection: "row",

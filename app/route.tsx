@@ -4,15 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
-import OpenStreetMap from "../components/OpenStreetMap";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import OpenStreetMap from "../components/OpenStreetMap";
 
 export default function RouteScreen() {
   const router = useRouter();
@@ -194,6 +193,13 @@ export default function RouteScreen() {
     return `${km.toFixed(1)} km`;
   }
 
+  const swapStartEnd = () => {
+    const s = { ...START } as LatLngOpt;
+    const e = { ...END } as LatLngOpt;
+    setStart(e);
+    setEnd(s);
+  };
+
   const renderHeader = () => {
     return (
       <Fragment>
@@ -209,7 +215,10 @@ export default function RouteScreen() {
               />
               <Text style={styles.topText}>{startLabel}</Text>
             </View>
-            <View style={styles.separator} />
+            <TouchableOpacity style={styles.swapRow} onPress={swapStartEnd}>
+              <Ionicons name="swap-vertical" size={18} color="#555" />
+              <Text style={styles.swapText}>Swap</Text>
+            </TouchableOpacity>
             <View style={styles.topRow}>
               <Ionicons
                 name="location"
@@ -313,6 +322,7 @@ export default function RouteScreen() {
             Number.isFinite(START.longitude) && (
               <Marker
                 draggable
+                anchor={{ x: 0.5, y: 1 }}
                 onDragEnd={(e) => {
                   const { latitude, longitude } = e.nativeEvent.coordinate;
                   setStart({ latitude, longitude });
@@ -322,11 +332,16 @@ export default function RouteScreen() {
                   longitude: START.longitude as number,
                 }}
                 title="Start"
-              />
+              >
+                <View style={[styles.markerContainer, styles.markerStart]}>
+                  <Ionicons name="navigate" size={18} color="#2e86de" />
+                </View>
+              </Marker>
             )}
           {Number.isFinite(END.latitude) && Number.isFinite(END.longitude) && (
             <Marker
               draggable
+              anchor={{ x: 0.5, y: 1 }}
               onDragEnd={(e) => {
                 const { latitude, longitude } = e.nativeEvent.coordinate;
                 setEnd({ latitude, longitude });
@@ -336,7 +351,11 @@ export default function RouteScreen() {
                 longitude: END.longitude as number,
               }}
               title="End"
-            />
+            >
+              <View style={[styles.markerContainer, styles.markerEnd]}>
+                <Ionicons name="location" size={18} color="#d63031" />
+              </View>
+            </Marker>
           )}
           {routeCoords.length > 0 && (
             <Polyline
@@ -380,7 +399,7 @@ const styles = StyleSheet.create({
   toggleRow: {
     flexDirection: "row",
     gap: 8,
-    marginBottom: 8,
+    marginTop: 8,
   },
   toggleBtn: {
     flex: 1,
@@ -405,17 +424,6 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     overflow: "hidden",
-  },
-  button: {
-    backgroundColor: "#2e86de",
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: "center",
-    marginBottom: Platform.select({ ios: 10, android: 10, default: 10 }),
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "600",
   },
   attributionContainer: {
     position: "absolute",
@@ -476,6 +484,14 @@ const styles = StyleSheet.create({
   },
   editChipText: { color: "#333", fontWeight: "600" },
   editChipTextActive: { color: "#2e86de" },
+  swapRow: {
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 6,
+  },
+  swapText: { color: "#555", fontWeight: "700" },
   bottomBar: {
     position: "absolute",
     left: 0,
@@ -510,4 +526,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   bottomPrimaryText: { color: "#fff", fontWeight: "700" },
+  markerContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  markerStart: {
+    borderWidth: 1,
+    borderColor: "#2e86de",
+  },
+  markerEnd: {
+    borderWidth: 1,
+    borderColor: "#d63031",
+  },
 });
