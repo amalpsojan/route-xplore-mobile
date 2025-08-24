@@ -4930,6 +4930,11 @@ minizlib@^3.0.1:
   dependencies:
     minipass "^7.1.2"
 
+mitt@^3.0.1:
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/mitt/-/mitt-3.0.1.tgz#ea36cf0cc30403601ae074c8f77b7092cdab36d1"
+  integrity sha512-vKivATfr97l2/QBCYAkXYDbrIWPM2IIKEl7YPhjCvKlG3kE2gm+uBo6nEXK3M5/Ffh/FLpKExzOQ3JJoJGFKBw==
+
 mkdirp@^1.0.4:
   version "1.0.4"
   resolved "https://registry.yarnpkg.com/mkdirp/-/mkdirp-1.0.4.tgz#3eb5ed62622756d79a5f0e2a221dfebad75c2f7e"
@@ -5626,6 +5631,26 @@ react@19.0.0:
   version "19.0.0"
   resolved "https://registry.yarnpkg.com/react/-/react-19.0.0.tgz#6e1969251b9f108870aa4bff37a0ce9ddfaaabdd"
   integrity sha512-V8AVnmPIICiWpGfm6GLzCR/W5FXLchHop40W4nXBmdlEceh16rCN8O8LNWm5bh5XUX91fh7KpA+W0TgMKmgTpQ==
+
+reactotron-core-client@2.9.7:
+  version "2.9.7"
+  resolved "https://registry.yarnpkg.com/reactotron-core-client/-/reactotron-core-client-2.9.7.tgz#c1fd2842b095dbd2c7522cfc6bd59e34768038eb"
+  integrity sha512-QWd0ekjU71CQL70J87NT5f7cmIJAMVZND+YgOaaUgmgFjhiXzHrpeIWs19+IFQPVLsJr97gdi58X8Y62Hchs9w==
+  dependencies:
+    reactotron-core-contract "0.2.5"
+
+reactotron-core-contract@0.2.5:
+  version "0.2.5"
+  resolved "https://registry.yarnpkg.com/reactotron-core-contract/-/reactotron-core-contract-0.2.5.tgz#927160c026895798bfe931bd2462fdd5d4e435f9"
+  integrity sha512-pxuXFG1jffAWQSdT0FBws+/Xvl8++6T6WrAi4g7AxIZU5FPeut2wq//0yDhDWx6lF82eAo5JTZK7zECQy45QxA==
+
+reactotron-react-native@^5.1.15:
+  version "5.1.15"
+  resolved "https://registry.yarnpkg.com/reactotron-react-native/-/reactotron-react-native-5.1.15.tgz#ccf1e8e9cdb9becd81c332b657962cd1f1e42414"
+  integrity sha512-6uUqRirt5rflxr71w4tOsP8o02cGk7D1dne0E32+8c8/EX6YrIs5x5v+ghRvIGwRJ7cDwdvVWayWD2Qa1msY8w==
+  dependencies:
+    mitt "^3.0.1"
+    reactotron-core-client "2.9.7"
 
 reflect.getprototypeof@^1.0.6, reflect.getprototypeof@^1.0.9:
   version "1.0.10"

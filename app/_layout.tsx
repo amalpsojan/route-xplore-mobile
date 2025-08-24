@@ -1,3 +1,6 @@
+if (__DEV__) {
+  require("../ReactotronConfig");
+}
 import queryClient from "@/services/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";

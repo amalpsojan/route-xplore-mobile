@@ -54,3 +54,21 @@ export const getRoute = async ({
   });
   return data;
 };
+
+type RouteWithWaypointsInput = {
+  start: string;
+  end: string;
+  waypoints?: string[];
+  geometry?: "geojson" | "polyline" | "polyline6";
+};
+
+export const getRouteWithWaypoints = async ({
+  geometry = "geojson",
+  ...input
+}: RouteWithWaypointsInput) => {
+  const { data } = await RestClient.post<RouteResponse>(`/route/with-waypoints`, {
+    ...input,
+    geometry,
+  });
+  return data;
+};

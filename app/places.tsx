@@ -1,11 +1,11 @@
+import { getRouteWithWaypoints } from "@/api/index";
+import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Marker } from "react-native-maps";
+import MapView, { Marker, Polyline } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
 import OpenStreetMap from "../components/OpenStreetMap";
-
-const OSM_TILE_TEMPLATE = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
 type Place = {
   id: string;
@@ -16,7 +16,12 @@ type Place = {
 
 export default function PlacesScreen() {
   const router = useRouter();
-  const { url } = useLocalSearchParams<{ url?: string }>();
+  const { slat, slng, elat, elng } = useLocalSearchParams<{
+    slat?: string;
+    slng?: string;
+    elat?: string;
+    elng?: string;
+  }>();
 
   // Placeholder places. Next iteration: fetch from backend /api/places
   const samplePlaces: Place[] = useMemo(
@@ -28,18 +33,56 @@ export default function PlacesScreen() {
     []
   );
 
+  const mapRef = useRef<MapView | null>(null);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
 
   const toggle = (id: string) => {
     setSelected((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const start = useMemo(() => ({
+    latitude: slat ? Number(slat) : undefined,
+    longitude: slng ? Number(slng) : undefined,
+  }), [slat, slng]);
+  const end = useMemo(() => ({
+    latitude: elat ? Number(elat) : undefined,
+    longitude: elng ? Number(elng) : undefined,
+  }), [elat, elng]);
+
   const initialRegion = {
-    latitude: 10.38,
-    longitude: 76.55,
+    latitude: (Number(slat) + Number(elat)) / 2 || 10.38,
+    longitude: (Number(slng) + Number(elng)) / 2 || 76.55,
     latitudeDelta: 0.8,
     longitudeDelta: 0.8,
   };
+
+  const waypoints = useMemo(() =>
+    Object.keys(selected)
+      .filter((id) => selected[id])
+      .map((id) => {
+        const p = samplePlaces.find((sp) => sp.id === id)!;
+        return `${p.latitude},${p.longitude}`;
+      }),
+  [selected, samplePlaces]);
+
+  const { data: routeData } = useQuery({
+    queryKey: ["route-with-waypoints", start, end, waypoints],
+    queryFn: () => getRouteWithWaypoints({
+      start: `${start.latitude},${start.longitude}`,
+      end: `${end.latitude},${end.longitude}`,
+      waypoints,
+      geometry: "geojson",
+    }),
+    enabled: Number.isFinite(start.latitude) && Number.isFinite(start.longitude) && Number.isFinite(end.latitude) && Number.isFinite(end.longitude),
+  });
+
+  const routeCoords = useMemo(() => {
+    const coords: any = routeData?.geometry?.coordinates;
+    if (!Array.isArray(coords)) return [] as Array<{ latitude: number; longitude: number }>;
+    return coords
+      .map((pair: any) => Array.isArray(pair) && pair.length >= 2 ? ({ latitude: Number(pair[1]), longitude: Number(pair[0]) }) : null)
+      .filter((p: any) => p && Number.isFinite(p.latitude) && Number.isFinite(p.longitude)) as Array<{ latitude: number; longitude: number }>;
+  }, [routeData]);
 
   const selectedList = samplePlaces.filter((p) => selected[p.id]);
 
@@ -52,7 +95,7 @@ export default function PlacesScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.mapContainer}>
-        <OpenStreetMap style={{ flex: 1 }} initialRegion={initialRegion} mapType="none">
+        <OpenStreetMap style={{ flex: 1 }} initialRegion={initialRegion} mapType="none" ref={mapRef}>
           {samplePlaces.map((p) => (
             <Marker
               key={p.id}
@@ -62,6 +105,9 @@ export default function PlacesScreen() {
               onPress={() => toggle(p.id)}
             />
           ))}
+          {routeCoords.length > 0 && (
+            <Polyline coordinates={routeCoords} strokeWidth={4} strokeColor="#2e86de" />
+          )}
         </OpenStreetMap>
       </View>
       <View style={styles.listHeader}>
