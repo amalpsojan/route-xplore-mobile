@@ -1,7 +1,7 @@
 import { getRoute } from "@/api/index";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Platform,
   StyleSheet,
@@ -24,30 +24,36 @@ export default function RouteScreen() {
     ename?: string;
   }>();
 
-  const start = useMemo(
-    () => ({
-      latitude: slat ? Number(slat) : undefined,
-      longitude: slng ? Number(slng) : undefined,
-    }),
-    [slat, slng]
-  );
-  const end = useMemo(
-    () => ({
-      latitude: elat ? Number(elat) : undefined,
-      longitude: elng ? Number(elng) : undefined,
-    }),
-    [elat, elng]
-  );
+  type LatLngOpt = { latitude?: number; longitude?: number };
+  const [start, setStart] = useState<LatLngOpt>({
+    latitude: slat ? Number(slat) : undefined,
+    longitude: slng ? Number(slng) : undefined,
+  });
+  const [end, setEnd] = useState<LatLngOpt>({
+    latitude: elat ? Number(elat) : undefined,
+    longitude: elng ? Number(elng) : undefined,
+  });
+  const [editTarget, setEditTarget] = useState<"start" | "end">("start");
 
   const { data: routeData, isPending } = useQuery({
-    queryKey: ["get-route", start, end],
+    queryKey: [
+      "get-route",
+      start.latitude,
+      start.longitude,
+      end.latitude,
+      end.longitude,
+    ],
     queryFn: () =>
       getRoute({
         start: `${start.latitude},${start.longitude}`,
         end: `${end.latitude},${end.longitude}`,
         geometry: "geojson",
       }),
-    enabled: Boolean(start.latitude) && Boolean(start.longitude) && Boolean(end.latitude) && Boolean(end.longitude),
+    enabled:
+      Number.isFinite(start.latitude) &&
+      Number.isFinite(start.longitude) &&
+      Number.isFinite(end.latitude) &&
+      Number.isFinite(end.longitude),
   });
 
   const START = start;
@@ -62,58 +68,19 @@ export default function RouteScreen() {
     longitudeDelta: 40,
   };
 
-  
-
-  // Build route coordinates from API response (supports multiple shapes)
+  // Build route coordinates from API response (expect GeoJSON LineString [lng, lat])
   const routeCoords = useMemo(() => {
-    const out: Array<{ latitude: number; longitude: number }> = [];
-    const pl: any = routeData;
-    if (!pl) return out;
-
-    // 1) GeoJSON LineString: [lng, lat]
-    const geo = pl?.route?.geometry?.coordinates || pl?.geometry?.coordinates;
-    if (Array.isArray(geo) && geo.length) {
-      for (const pair of geo) {
-        if (Array.isArray(pair) && pair.length >= 2) {
-          const [lng, lat] = pair;
-          const la = typeof lat === "string" ? Number(lat) : lat;
-          const lo = typeof lng === "string" ? Number(lng) : lng;
-          if (Number.isFinite(la) && Number.isFinite(lo))
-            out.push({ latitude: la, longitude: lo });
-        }
-      }
-    }
-
-    // 2) Array of {lat,lng} or [lat,lng]
-    if (out.length === 0) {
-      const arr = pl?.route?.coordinates || pl?.coordinates;
-      if (Array.isArray(arr)) {
-        for (const item of arr) {
-          if (Array.isArray(item) && item.length >= 2) {
-            const [laRaw, loRaw] = item;
-            const la = typeof laRaw === "string" ? Number(laRaw) : laRaw;
-            const lo = typeof loRaw === "string" ? Number(loRaw) : loRaw;
-            if (Number.isFinite(la) && Number.isFinite(lo))
-              out.push({ latitude: la, longitude: lo });
-          } else if (item && typeof item === "object") {
-            const la =
-              typeof item.lat === "string"
-                ? Number(item.lat)
-                : item.lat ?? item.latitude;
-            const lo =
-              typeof item.lng === "string"
-                ? Number(item.lng)
-                : item.lng ?? item.lon ?? item.long ?? item.longitude;
-            if (Number.isFinite(la) && Number.isFinite(lo))
-              out.push({ latitude: la as number, longitude: lo as number });
-          }
-        }
-      }
-    }
-
-    
-
-    return out;
+    const coords: any = routeData?.geometry?.coordinates;
+    if (!Array.isArray(coords)) return [] as Array<{ latitude: number; longitude: number }>;
+    return coords
+      .map((pair: any) =>
+        Array.isArray(pair) && pair.length >= 2
+          ? { latitude: Number(pair[1]), longitude: Number(pair[0]) }
+          : null
+      )
+      .filter(
+        (p: any) => p && Number.isFinite(p.latitude) && Number.isFinite(p.longitude)
+      ) as Array<{ latitude: number; longitude: number }>;
   }, [routeData]);
 
   // Fit map once both coordinates are available
@@ -152,7 +119,7 @@ export default function RouteScreen() {
     }
   }, [routeCoords]);
 
-  if (isPending) return <Text>Loading...</Text>;
+  // Keep rendering the map while fetching to avoid flicker
 
   return (
     <SafeAreaView style={styles.container}>
@@ -179,6 +146,22 @@ export default function RouteScreen() {
         )}
       </View>
 
+      {/* Edit controls */}
+      <View style={styles.toggleRow}>
+        <TouchableOpacity
+          style={[styles.toggleBtn, editTarget === "start" && styles.toggleActive]}
+          onPress={() => setEditTarget("start")}
+        >
+          <Text style={[styles.toggleText, editTarget === "start" && styles.toggleTextActive]}>Edit Start</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.toggleBtn, editTarget === "end" && styles.toggleActive]}
+          onPress={() => setEditTarget("end")}
+        >
+          <Text style={[styles.toggleText, editTarget === "end" && styles.toggleTextActive]}>Edit End</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Map */}
       <View style={styles.mapContainer}>
         <OpenStreetMap
@@ -190,10 +173,20 @@ export default function RouteScreen() {
           scrollEnabled
           zoomEnabled
           ref={mapRef}
+          onPress={(e) => {
+            const { latitude, longitude } = e.nativeEvent.coordinate;
+            if (editTarget === "start") setStart({ latitude, longitude });
+            else setEnd({ latitude, longitude });
+          }}
         >
           {Number.isFinite(START.latitude) &&
             Number.isFinite(START.longitude) && (
               <Marker
+                draggable
+                onDragEnd={(e) => {
+                  const { latitude, longitude } = e.nativeEvent.coordinate;
+                  setStart({ latitude, longitude });
+                }}
                 coordinate={{
                   latitude: START.latitude as number,
                   longitude: START.longitude as number,
@@ -203,6 +196,11 @@ export default function RouteScreen() {
             )}
           {Number.isFinite(END.latitude) && Number.isFinite(END.longitude) && (
             <Marker
+              draggable
+              onDragEnd={(e) => {
+                const { latitude, longitude } = e.nativeEvent.coordinate;
+                setEnd({ latitude, longitude });
+              }}
               coordinate={{
                 latitude: END.latitude as number,
                 longitude: END.longitude as number,
@@ -266,6 +264,30 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 14,
     fontWeight: "600",
+  },
+  toggleRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 8,
+  },
+  toggleBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#e1e1e1",
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  toggleActive: {
+    backgroundColor: "#e8f0fe",
+    borderColor: "#2e86de",
+  },
+  toggleText: {
+    color: "#333",
+    fontWeight: "600",
+  },
+  toggleTextActive: {
+    color: "#2e86de",
   },
   mapContainer: {
     flex: 1,
