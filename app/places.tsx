@@ -3,7 +3,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useRef, useState } from "react";
-import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Dimensions,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import Carousel from "react-native-reanimated-carousel";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -86,7 +92,10 @@ export default function PlacesScreen() {
         description: p.tags?.tourism || "Attraction",
         wikidata: p.tags?.wikidata,
       }))
-      .filter((p: Place) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude));
+      .filter(
+        (p: Place) =>
+          Number.isFinite(p.latitude) && Number.isFinite(p.longitude)
+      );
   }, [placesResp]);
 
   const { data: detailsMap } = useQuery({
@@ -95,7 +104,9 @@ export default function PlacesScreen() {
       (places || []).map((p) => p.wikidata).filter(Boolean),
     ],
     queryFn: async () => {
-      const ids = (places || []).map((p) => p.wikidata).filter(Boolean) as string[];
+      const ids = (places || [])
+        .map((p) => p.wikidata)
+        .filter(Boolean) as string[];
       const results = await Promise.all(ids.map((id) => getPlaceDetails(id)));
       const map: Record<string, any> = {};
       ids.forEach((id, i) => {
@@ -111,7 +122,10 @@ export default function PlacesScreen() {
       const det = p.wikidata ? (detailsMap as any)?.[p.wikidata] : undefined;
       return {
         ...p,
-        imageUrl: p.imageUrl || det?.thumbnail || `https://picsum.photos/seed/${p.id}/600/400`,
+        imageUrl:
+          p.imageUrl ||
+          det?.thumbnail ||
+          `https://picsum.photos/seed/${p.id}/600/400`,
         description: det?.extract || p.description,
       };
     });
@@ -209,7 +223,13 @@ export default function PlacesScreen() {
               key={p.id}
               coordinate={{ latitude: p.latitude, longitude: p.longitude }}
               title={p.name}
-              pinColor={selected[p.id] ? "#2e86de" : (idx === activeIndex ? "#e67e22" : undefined)}
+              pinColor={
+                selected[p.id]
+                  ? "#2e86de"
+                  : idx === activeIndex
+                  ? "#e67e22"
+                  : undefined
+              }
               onPress={() => toggle(p.id)}
             />
           ))}
@@ -314,5 +334,4 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
   },
-  
 });

@@ -1,7 +1,8 @@
 import { BlurView } from "expo-blur";
 import React from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
-import { State, TapGestureHandler } from "react-native-gesture-handler";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { runOnJS } from "react-native-reanimated";
 
 type Props = {
   name: string;
@@ -20,26 +21,28 @@ const PlaceCard: React.FC<Props> = ({
   onToggle,
   onPress,
 }) => {
-  const handleTap = (event: any) => {
-    if (event.nativeEvent.state === State.ACTIVE) {
-      onPress();
-    }
-  };
+  const toggleTap = Gesture.Tap()
+    .maxDuration(250)
+    .maxDistance(5)
+    .onEnd((_event, success) => {
+      if (success) {
+        runOnJS(onToggle)();
+      }
+    });
 
-  const handleSelectTap = (event: any) => {
-    if (event.nativeEvent.state === State.ACTIVE) {
-      onToggle();
-    }
-  };
+  const cardTap = Gesture.Tap()
+    .maxDuration(250)
+    .maxDistance(10)
+    .requireExternalGestureToFail(toggleTap)
+    .onEnd((_event, success) => {
+      if (success) {
+        runOnJS(onPress)();
+      }
+    });
 
   return (
     <View style={styles.cardContainer}>
-      <TapGestureHandler
-        onHandlerStateChange={handleTap}
-        maxDeltaX={10}
-        maxDeltaY={10}
-        minPointers={1}
-      >
+      <GestureDetector gesture={cardTap}>
         <View style={styles.cardTouchable}>
           <BlurView intensity={25} tint="dark" style={styles.card}>
             <Image source={{ uri: imageUrl }} style={styles.cardImage} />
@@ -53,22 +56,18 @@ const PlaceCard: React.FC<Props> = ({
                 tint={"dark"} 
                 style={[styles.cardBtn]}
               >
-                <TapGestureHandler
-                  onHandlerStateChange={handleSelectTap}
-                  maxDeltaX={5}
-                  maxDeltaY={5}
-                >
+                <GestureDetector gesture={toggleTap}>
                   <View style={styles.cardBtnTouch}>
                     <Text style={[styles.cardBtnText]}>
                       {selected ? "Selected" : "Select"}
                     </Text>
                   </View>
-                </TapGestureHandler>
+                </GestureDetector>
               </BlurView>
             </BlurView>
           </BlurView>
         </View>
-      </TapGestureHandler>
+      </GestureDetector>
     </View>
   );
 };
@@ -127,9 +126,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
   },
-  cardBtnActive: { 
-    borderColor: "rgba(255, 255, 255, 0.5)",
-  },
   cardBtnText: { 
     color: "#1a5490", 
     fontWeight: "700",
@@ -137,11 +133,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     textAlign: "center",
   },
-  cardBtnTextActive: { 
-    color: "#ffffff",
-    fontWeight: "800",
-  },
-
 });
 
 export default PlaceCard;
