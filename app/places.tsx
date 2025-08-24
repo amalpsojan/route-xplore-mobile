@@ -5,7 +5,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useRef, useState } from "react";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import OpenStreetMap from "../components/OpenStreetMap";
 
 type Place = {
@@ -17,6 +17,7 @@ type Place = {
 
 export default function PlacesScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { slat, slng, elat, elng } = useLocalSearchParams<{
     slat?: string;
     slng?: string;
@@ -94,7 +95,7 @@ export default function PlacesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       <View style={styles.mapContainer}>
         <OpenStreetMap style={{ flex: 1 }} initialRegion={initialRegion} mapType="none" ref={mapRef}>
           {Number.isFinite(start.latitude) && Number.isFinite(start.longitude) && (
@@ -152,7 +153,7 @@ export default function PlacesScreen() {
       <TouchableOpacity style={styles.button} onPress={onGenerate}>
         <Text style={styles.buttonText}>Generate Google Maps Link</Text>
       </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -160,8 +161,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    paddingHorizontal: 16,
-    paddingTop: 16,
   },
   mapContainer: {
     height: 260,
