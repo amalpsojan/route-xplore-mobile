@@ -263,6 +263,19 @@ export default function PlacesScreen() {
                   {selected[item.id] ? "Selected" : "Select"}
                 </Text>
               </TouchableOpacity>
+              {item.wikidata ? (
+                <TouchableOpacity
+                  onPress={() =>
+                    router.push({
+                      pathname: "/place-details",
+                      params: { wiki: item.wikidata },
+                    })
+                  }
+                  style={styles.linkBtn}
+                >
+                  <Text style={styles.linkText}>View details</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           </View>
         )}
@@ -355,4 +368,11 @@ const styles = StyleSheet.create({
   cardBtnActive: { backgroundColor: "#2e86de" },
   cardBtnText: { color: "#2e86de", fontWeight: "700" },
   cardBtnTextActive: { color: "#fff" },
+  linkBtn: {
+    marginTop: 6,
+  },
+  linkText: {
+    color: "#2e86de",
+    fontWeight: "700",
+  },
 });

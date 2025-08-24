@@ -15,6 +15,7 @@ export default function RootLayout() {
         />
         <Stack.Screen name="route" options={{ title: "Route" }} />
         <Stack.Screen name="places" options={{ title: "Places" }} />
+        <Stack.Screen name="place-details" options={{ title: "Place" }} />
       </Stack>
     </QueryClientProvider>
   );
