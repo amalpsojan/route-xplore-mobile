@@ -2,7 +2,7 @@ import { getRoute } from "@/api/index";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   Platform,
   StyleSheet,
@@ -11,11 +11,12 @@ import {
   View,
 } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
-import { SafeAreaView } from "react-native-safe-area-context";
 import OpenStreetMap from "../components/OpenStreetMap";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function RouteScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { slat, slng, elat, elng, sname, ename } = useLocalSearchParams<{
     slat?: string;
     slng?: string;
@@ -103,7 +104,9 @@ export default function RouteScreen() {
     const apiName = (routeData as any)?.start?.name;
     if (hasEditedStart && apiName) return String(apiName);
     if (Number.isFinite(START.latitude) && Number.isFinite(START.longitude)) {
-      return `${(START.latitude as number).toFixed(6)}, ${(START.longitude as number).toFixed(6)}`;
+      return `${(START.latitude as number).toFixed(6)}, ${(
+        START.longitude as number
+      ).toFixed(6)}`;
     }
     return "—";
   }, [sname, routeData, START, hasEditedStart]);
@@ -113,7 +116,9 @@ export default function RouteScreen() {
     const apiName = (routeData as any)?.end?.name;
     if (hasEditedEnd && apiName) return String(apiName);
     if (Number.isFinite(END.latitude) && Number.isFinite(END.longitude)) {
-      return `${(END.latitude as number).toFixed(6)}, ${(END.longitude as number).toFixed(6)}`;
+      return `${(END.latitude as number).toFixed(6)}, ${(
+        END.longitude as number
+      ).toFixed(6)}`;
     }
     return "—";
   }, [ename, routeData, END, hasEditedEnd]);
@@ -121,7 +126,8 @@ export default function RouteScreen() {
   // Build route coordinates from API response (expect GeoJSON LineString [lng, lat])
   const routeCoords = useMemo(() => {
     const coords: any = routeData?.geometry?.coordinates;
-    if (!Array.isArray(coords)) return [] as Array<{ latitude: number; longitude: number }>;
+    if (!Array.isArray(coords))
+      return [] as Array<{ latitude: number; longitude: number }>;
     return coords
       .map((pair: any) =>
         Array.isArray(pair) && pair.length >= 2
@@ -129,7 +135,8 @@ export default function RouteScreen() {
           : null
       )
       .filter(
-        (p: any) => p && Number.isFinite(p.latitude) && Number.isFinite(p.longitude)
+        (p: any) =>
+          p && Number.isFinite(p.latitude) && Number.isFinite(p.longitude)
       ) as Array<{ latitude: number; longitude: number }>;
   }, [routeData]);
 
@@ -178,7 +185,7 @@ export default function RouteScreen() {
     const h = Math.floor(mins / 60);
     const m = mins % 60;
     return `${h} hr${h > 1 ? "s" : ""} ${m} min`;
-    }
+  }
 
   function formatDistance(meters?: number) {
     if (!meters || !Number.isFinite(meters)) return "—";
@@ -187,8 +194,104 @@ export default function RouteScreen() {
     return `${km.toFixed(1)} km`;
   }
 
+  const renderHeader = () => {
+    return (
+      <Fragment>
+        {/* Top card overlay */}
+        <View pointerEvents="box-none" style={styles.topOverlay}>
+          <View style={styles.topCard}>
+            <View style={styles.topRow}>
+              <Ionicons
+                name="navigate"
+                size={18}
+                color="#2e86de"
+                style={styles.icon}
+              />
+              <Text style={styles.topText}>{startLabel}</Text>
+            </View>
+            <View style={styles.separator} />
+            <View style={styles.topRow}>
+              <Ionicons
+                name="location"
+                size={18}
+                color="#d63031"
+                style={styles.icon}
+              />
+              <Text style={styles.topText}>{endLabel}</Text>
+            </View>
+            <View style={styles.editRow}>
+              <TouchableOpacity
+                style={[
+                  styles.editChip,
+                  editTarget === "start" && styles.editChipActive,
+                ]}
+                onPress={() => setEditTarget("start")}
+              >
+                <Text
+                  style={[
+                    styles.editChipText,
+                    editTarget === "start" && styles.editChipTextActive,
+                  ]}
+                >
+                  Edit Start
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.editChip,
+                  editTarget === "end" && styles.editChipActive,
+                ]}
+                onPress={() => setEditTarget("end")}
+              >
+                <Text
+                  style={[
+                    styles.editChipText,
+                    editTarget === "end" && styles.editChipTextActive,
+                  ]}
+                >
+                  Edit End
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Fragment>
+    );
+  };
+
+  const renderBottom = () => {
+    return (
+      <Fragment>
+        {/* Bottom summary bar */}
+        <View style={styles.bottomBar}>
+          <View style={styles.summaryPill}>
+            <Ionicons name="car" size={16} color="#333" />
+            <Text style={styles.summaryText}>
+              {formatDuration(routeData?.durationSeconds)}
+            </Text>
+            <Text style={styles.dot}>·</Text>
+            <Text style={styles.summaryText}>
+              {formatDistance(routeData?.distanceMeters)}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.bottomPrimary}
+            onPress={() =>
+              router.push({
+                pathname: "/places",
+                params: { slat, slng, elat, elng },
+              })
+            }
+          >
+            <Text style={styles.bottomPrimaryText}>Search Places</Text>
+          </TouchableOpacity>
+        </View>
+      </Fragment>
+    );
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       {/* Map */}
       <View style={styles.mapContainer}>
         <OpenStreetMap
@@ -252,57 +355,11 @@ export default function RouteScreen() {
           </View>
         </View>
 
-        {/* Top card overlay */}
-        <View pointerEvents="box-none" style={styles.topOverlay}>
-          <View style={styles.topCard}>
-            <View style={styles.topRow}>
-              <Ionicons name="navigate" size={18} color="#2e86de" style={styles.icon} />
-              <Text style={styles.topText}>{startLabel}</Text>
-            </View>
-            <View style={styles.separator} />
-            <View style={styles.topRow}>
-              <Ionicons name="location" size={18} color="#d63031" style={styles.icon} />
-              <Text style={styles.topText}>{endLabel}</Text>
-            </View>
-            <View style={styles.editRow}>
-              <TouchableOpacity
-                style={[styles.editChip, editTarget === "start" && styles.editChipActive]}
-                onPress={() => setEditTarget("start")}
-              >
-                <Text style={[styles.editChipText, editTarget === "start" && styles.editChipTextActive]}>Edit Start</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.editChip, editTarget === "end" && styles.editChipActive]}
-                onPress={() => setEditTarget("end")}
-              >
-                <Text style={[styles.editChipText, editTarget === "end" && styles.editChipTextActive]}>Edit End</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+        {renderHeader()}
 
-        {/* Bottom summary bar */}
-        <View style={styles.bottomBar}>
-          <View style={styles.summaryPill}>
-            <Ionicons name="car" size={16} color="#333" />
-            <Text style={styles.summaryText}>{formatDuration(routeData?.durationSeconds)}</Text>
-            <Text style={styles.dot}>·</Text>
-            <Text style={styles.summaryText}>{formatDistance(routeData?.distanceMeters)}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.bottomPrimary}
-            onPress={() =>
-              router.push({
-                pathname: "/places",
-                params: { slat, slng, elat, elng },
-              })
-            }
-          >
-            <Text style={styles.bottomPrimaryText}>Search Places</Text>
-          </TouchableOpacity>
-        </View>
+        {renderBottom()}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -310,15 +367,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    gap: 12,
-  },
-  rowBox: {
-    backgroundColor: "#f7f7f7",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
   },
   label: {
     fontSize: 12,
