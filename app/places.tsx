@@ -3,18 +3,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useRef, useState } from "react";
-import {
-  Dimensions,
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import Carousel from "react-native-reanimated-carousel";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import OpenStreetMap from "../components/OpenStreetMap";
+import PlaceCard from "../components/cards/PlaceCard";
 
 type Place = {
   id: string;
@@ -231,7 +225,7 @@ export default function PlacesScreen() {
 
       <Carousel
         width={width * 0.9}
-        height={180}
+        height={200}
         data={enrichedPlaces}
         mode="parallax"
         modeConfig={{
@@ -240,44 +234,14 @@ export default function PlacesScreen() {
           parallaxAdjacentItemScale: 0.85,
         }}
         renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
-            <View style={styles.cardBody}>
-              <Text style={styles.cardTitle}>{item.name}</Text>
-              <Text style={styles.cardDesc} numberOfLines={2}>
-                {item.description}
-              </Text>
-              <TouchableOpacity
-                onPress={() => toggle(item.id)}
-                style={[
-                  styles.cardBtn,
-                  selected[item.id] && styles.cardBtnActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.cardBtnText,
-                    selected[item.id] && styles.cardBtnTextActive,
-                  ]}
-                >
-                  {selected[item.id] ? "Selected" : "Select"}
-                </Text>
-              </TouchableOpacity>
-              {item.wikidata ? (
-                <TouchableOpacity
-                  onPress={() =>
-                    router.push({
-                      pathname: "/place-details",
-                      params: { wiki: item.wikidata },
-                    })
-                  }
-                  style={styles.linkBtn}
-                >
-                  <Text style={styles.linkText}>View details</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          </View>
+          <PlaceCard
+            name={item.name}
+            imageUrl={item.imageUrl}
+            description={item.description}
+            selected={!!selected[item.id]}
+            onToggle={() => toggle(item.id)}
+            onViewDetails={item.wikidata ? () => router.push({ pathname: "/place-details", params: { wiki: item.wikidata } }) : undefined}
+          />
         )}
         onSnapToItem={(index) => {
           setActiveIndex(index);
@@ -314,6 +278,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 16,
+    // backgroundColor: "red",
   },
   markerContainer: {
     backgroundColor: "#fff",
@@ -345,34 +310,5 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
   },
-  card: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    overflow: "hidden",
-    marginHorizontal: 12,
-    borderWidth: 1,
-    borderColor: "#eee",
-  },
-  cardImage: { width: 140, height: 160 },
-  cardBody: { flex: 1, padding: 10, gap: 6, justifyContent: "space-between" },
-  cardTitle: { fontWeight: "700", fontSize: 14 },
-  cardDesc: { color: "#666", fontSize: 12 },
-  cardBtn: {
-    alignSelf: "flex-start",
-    backgroundColor: "#eaf2ff",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  cardBtnActive: { backgroundColor: "#2e86de" },
-  cardBtnText: { color: "#2e86de", fontWeight: "700" },
-  cardBtnTextActive: { color: "#fff" },
-  linkBtn: {
-    marginTop: 6,
-  },
-  linkText: {
-    color: "#2e86de",
-    fontWeight: "700",
-  },
+  
 });
