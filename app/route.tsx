@@ -1,4 +1,5 @@
 import { getRoute } from "@/api/index";
+import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -170,35 +171,24 @@ export default function RouteScreen() {
 
   // Keep rendering the map while fetching to avoid flicker
 
+  function formatDuration(seconds?: number) {
+    if (!seconds || !Number.isFinite(seconds)) return "—";
+    const mins = Math.round(seconds / 60);
+    if (mins < 60) return `${mins} min`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${h} hr${h > 1 ? "s" : ""} ${m} min`;
+    }
+
+  function formatDistance(meters?: number) {
+    if (!meters || !Number.isFinite(meters)) return "—";
+    const km = meters / 1000;
+    if (km < 1) return `${Math.round(meters)} m`;
+    return `${km.toFixed(1)} km`;
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top: Start */}
-      <View style={styles.rowBox}>
-        <Text style={styles.label}>Start</Text>
-        <Text style={styles.value}>{startLabel}</Text>
-      </View>
-      {/* Below: End */}
-      <View style={styles.rowBox}>
-        <Text style={styles.label}>End</Text>
-        <Text style={styles.value}>{endLabel}</Text>
-      </View>
-
-      {/* Edit controls */}
-      <View style={styles.toggleRow}>
-        <TouchableOpacity
-          style={[styles.toggleBtn, editTarget === "start" && styles.toggleActive]}
-          onPress={() => setEditTarget("start")}
-        >
-          <Text style={[styles.toggleText, editTarget === "start" && styles.toggleTextActive]}>Edit Start</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toggleBtn, editTarget === "end" && styles.toggleActive]}
-          onPress={() => setEditTarget("end")}
-        >
-          <Text style={[styles.toggleText, editTarget === "end" && styles.toggleTextActive]}>Edit End</Text>
-        </TouchableOpacity>
-      </View>
-
       {/* Map */}
       <View style={styles.mapContainer}>
         <OpenStreetMap
@@ -261,20 +251,57 @@ export default function RouteScreen() {
             </Text>
           </View>
         </View>
-      </View>
 
-      {/* Search Places button */}
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() =>
-          router.push({
-            pathname: "/places",
-            params: { slat, slng, elat, elng },
-          })
-        }
-      >
-        <Text style={styles.buttonText}>Search Places</Text>
-      </TouchableOpacity>
+        {/* Top card overlay */}
+        <View pointerEvents="box-none" style={styles.topOverlay}>
+          <View style={styles.topCard}>
+            <View style={styles.topRow}>
+              <Ionicons name="navigate" size={18} color="#2e86de" style={styles.icon} />
+              <Text style={styles.topText}>{startLabel}</Text>
+            </View>
+            <View style={styles.separator} />
+            <View style={styles.topRow}>
+              <Ionicons name="location" size={18} color="#d63031" style={styles.icon} />
+              <Text style={styles.topText}>{endLabel}</Text>
+            </View>
+            <View style={styles.editRow}>
+              <TouchableOpacity
+                style={[styles.editChip, editTarget === "start" && styles.editChipActive]}
+                onPress={() => setEditTarget("start")}
+              >
+                <Text style={[styles.editChipText, editTarget === "start" && styles.editChipTextActive]}>Edit Start</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.editChip, editTarget === "end" && styles.editChipActive]}
+                onPress={() => setEditTarget("end")}
+              >
+                <Text style={[styles.editChipText, editTarget === "end" && styles.editChipTextActive]}>Edit End</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Bottom summary bar */}
+        <View style={styles.bottomBar}>
+          <View style={styles.summaryPill}>
+            <Ionicons name="car" size={16} color="#333" />
+            <Text style={styles.summaryText}>{formatDuration(routeData?.durationSeconds)}</Text>
+            <Text style={styles.dot}>·</Text>
+            <Text style={styles.summaryText}>{formatDistance(routeData?.distanceMeters)}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.bottomPrimary}
+            onPress={() =>
+              router.push({
+                pathname: "/places",
+                params: { slat, slng, elat, elng },
+              })
+            }
+          >
+            <Text style={styles.bottomPrimaryText}>Search Places</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -357,4 +384,82 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#2d3436",
   },
+  topOverlay: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    right: 12,
+  },
+  topCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  icon: { marginRight: 8 },
+  topText: { fontSize: 14, fontWeight: "600" },
+  separator: {
+    height: 1,
+    backgroundColor: "#eee",
+    marginVertical: 10,
+  },
+  editRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+  },
+  editChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#e1e1e1",
+  },
+  editChipActive: {
+    backgroundColor: "#e8f0fe",
+    borderColor: "#2e86de",
+  },
+  editChipText: { color: "#333", fontWeight: "600" },
+  editChipTextActive: { color: "#2e86de" },
+  bottomBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 12,
+    backgroundColor: "rgba(255,255,255,0.95)",
+  },
+  summaryPill: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  summaryText: { fontWeight: "700", color: "#333" },
+  dot: { marginHorizontal: 4, color: "#999" },
+  bottomPrimary: {
+    backgroundColor: "#2e86de",
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  bottomPrimaryText: { color: "#fff", fontWeight: "700" },
 });
