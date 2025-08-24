@@ -11,22 +11,6 @@ type StartEndPoints = {
 type ParseLinkResponse = {
   start: StartEndPoints;
   end: StartEndPoints;
-  waypoints: [];
-  route: {
-    osrmUrl: string;
-    geometry: {
-      coordinates: number[];
-      type: string;
-    };
-    coordinates: {
-      lat: number;
-      lng: number;
-    }[];
-    distanceMeters: number;
-    durationSeconds: number;
-    provider: string;
-    profile: string;
-  };
 };
 
 export const parseLink = async (mapLink: string) => {
@@ -36,3 +20,35 @@ export const parseLink = async (mapLink: string) => {
   return data;
 };
 
+type RouteInput = {
+  start: string;
+  end: string;
+  geometry?: "geojson" | "polyline" | "polyline6";
+};
+
+type RouteResponse = {
+  distanceMeters: number;
+  durationSeconds: number;
+  provider: string;
+  profile: string;
+  osrmUrl: string;
+  geometry: {
+    coordinates: number[];
+    type: string;
+  };
+  coordinates: {
+    lat: number;
+    lng: number;
+  }[];
+};
+
+export const getRoute = async ({
+  geometry = "geojson",
+  ...input
+}: RouteInput) => {
+  const { data } = await RestClient.post<RouteResponse>(`/route`, {
+    ...input,
+    geometry,
+  });
+  return data;
+};

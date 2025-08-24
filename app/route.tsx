@@ -1,74 +1,200 @@
+import { parseLink } from "@/api";
+import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT, UrlTile } from "react-native-maps";
+import React, { useEffect, useMemo, useRef } from "react";
+import {
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import MapView, { Marker, Polyline } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-const OSM_TILE_TEMPLATE = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+import OpenStreetMap from "../components/OpenStreetMap";
 
 export default function RouteScreen() {
   const router = useRouter();
-  const { url } = useLocalSearchParams<{ url?: string }>();
+  const { url: mapLink } = useLocalSearchParams<{ url?: string }>();
 
-  // TODO: Parse the provided Google Maps URL via backend; hard-coded for now
-  const START = { latitude: 10.4723104, longitude: 76.2147255 };
-  const END = { latitude: 10.2814598, longitude: 76.8649643 };
+  const { data: parsedLink, isPending } = useQuery({
+    queryKey: ["parse-link", mapLink],
+    queryFn: () => parseLink(mapLink as string),
+    enabled: !!mapLink,
+  });
 
-  const [routeCoords, setRouteCoords] = useState<Array<{ latitude: number; longitude: number }>>([]);
+  const START = useMemo(() => {
+    const lat = parsedLink?.start?.coordinates?.lat;
+    const lng = parsedLink?.start?.coordinates?.lng;
+    return {
+      latitude: typeof lat === "string" ? Number(lat) : lat,
+      longitude: typeof lng === "string" ? Number(lng) : lng,
+    } as { latitude?: number; longitude?: number };
+  }, [parsedLink]);
+  const END = useMemo(() => {
+    const lat = parsedLink?.end?.coordinates?.lat;
+    const lng = parsedLink?.end?.coordinates?.lng;
+    return {
+      latitude: typeof lat === "string" ? Number(lat) : lat,
+      longitude: typeof lng === "string" ? Number(lng) : lng,
+    } as { latitude?: number; longitude?: number };
+  }, [parsedLink]);
+
   const mapRef = useRef<MapView | null>(null);
 
   const initialRegion = {
-    latitude: (START.latitude + END.latitude) / 2,
-    longitude: (START.longitude + END.longitude) / 2,
-    latitudeDelta: Math.abs(START.latitude - END.latitude) * 2 || 0.5,
-    longitudeDelta: Math.abs(START.longitude - END.longitude) * 2 || 0.5,
+    latitude: 20,
+    longitude: 0,
+    latitudeDelta: 40,
+    longitudeDelta: 40,
   };
 
-  useEffect(() => {
-    const fetchRoute = async () => {
-      try {
-        const osrm = `https://router.project-osrm.org/route/v1/driving/${START.longitude},${START.latitude};${END.longitude},${END.latitude}?overview=full&geometries=geojson`;
-        const res = await fetch(osrm);
-        const json = await res.json();
-        const coords = json?.routes?.[0]?.geometry?.coordinates ?? [];
-        const mapped = coords.map((pair: [number, number]) => ({ latitude: pair[1], longitude: pair[0] }));
-        setRouteCoords(mapped);
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.warn("Failed to fetch route from OSRM", e);
-      }
-    };
-    fetchRoute();
-  }, [url]);
+  // Decode Google-encoded polyline
+  function decodePolyline(points: string, precision: number = 5) {
+    let index = 0;
+    const len = points.length;
+    let lat = 0;
+    let lng = 0;
+    const coordinates: Array<{ latitude: number; longitude: number }> = [];
+    const factor = Math.pow(10, precision);
+    while (index < len) {
+      let b: number;
+      let shift = 0;
+      let result = 0;
+      do {
+        b = points.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      const dlat = (result & 1) ? ~(result >> 1) : (result >> 1);
+      lat += dlat;
+      shift = 0;
+      result = 0;
+      do {
+        b = points.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      const dlng = (result & 1) ? ~(result >> 1) : (result >> 1);
+      lng += dlng;
+      coordinates.push({ latitude: lat / factor, longitude: lng / factor });
+    }
+    return coordinates;
+  }
 
+  // Build route coordinates from API response (supports multiple shapes)
+  const routeCoords = useMemo(() => {
+    const out: Array<{ latitude: number; longitude: number }> = [];
+    const pl: any = parsedLink;
+    if (!pl) return out;
+
+    // 1) GeoJSON LineString: [lng, lat]
+    const geo = pl?.route?.geometry?.coordinates || pl?.geometry?.coordinates;
+    if (Array.isArray(geo) && geo.length) {
+      for (const pair of geo) {
+        if (Array.isArray(pair) && pair.length >= 2) {
+          const [lng, lat] = pair;
+          const la = typeof lat === "string" ? Number(lat) : lat;
+          const lo = typeof lng === "string" ? Number(lng) : lng;
+          if (Number.isFinite(la) && Number.isFinite(lo)) out.push({ latitude: la, longitude: lo });
+        }
+      }
+    }
+
+    // 2) Array of {lat,lng} or [lat,lng]
+    if (out.length === 0) {
+      const arr = pl?.route?.coordinates || pl?.coordinates;
+      if (Array.isArray(arr)) {
+        for (const item of arr) {
+          if (Array.isArray(item) && item.length >= 2) {
+            const [laRaw, loRaw] = item;
+            const la = typeof laRaw === "string" ? Number(laRaw) : laRaw;
+            const lo = typeof loRaw === "string" ? Number(loRaw) : loRaw;
+            if (Number.isFinite(la) && Number.isFinite(lo)) out.push({ latitude: la, longitude: lo });
+          } else if (item && typeof item === "object") {
+            const la = typeof item.lat === "string" ? Number(item.lat) : (item.lat ?? item.latitude);
+            const lo = typeof item.lng === "string" ? Number(item.lng) : (item.lng ?? item.lon ?? item.long ?? item.longitude);
+            if (Number.isFinite(la) && Number.isFinite(lo)) out.push({ latitude: la as number, longitude: lo as number });
+          }
+        }
+      }
+    }
+
+    // 3) Encoded polyline (precision 5 / 6)
+    if (out.length === 0) {
+      const p5 = pl?.overview_polyline?.points || pl?.polyline || pl?.route?.polyline;
+      if (typeof p5 === "string" && p5.length > 0) {
+        try { return decodePolyline(p5, 5); } catch {}
+      }
+      const p6 = pl?.polyline6 || pl?.route?.polyline6;
+      if (typeof p6 === "string" && p6.length > 0) {
+        try { return decodePolyline(p6, 6); } catch {}
+      }
+    }
+
+    return out;
+  }, [parsedLink]);
+
+  // Fit map once both coordinates are available
   useEffect(() => {
-    if (routeCoords.length > 0 && mapRef.current) {
+    const hasStart = Number.isFinite(START.latitude) && Number.isFinite(START.longitude);
+    const hasEnd = Number.isFinite(END.latitude) && Number.isFinite(END.longitude);
+    if (hasStart && hasEnd && mapRef.current) {
+      mapRef.current.fitToCoordinates(
+        [
+          { latitude: START.latitude as number, longitude: START.longitude as number },
+          { latitude: END.latitude as number, longitude: END.longitude as number },
+        ],
+        {
+          edgePadding: { top: 80, right: 80, bottom: 100, left: 80 },
+          animated: true,
+        }
+      );
+    }
+  }, [START, END]);
+
+  // Fit to the route when present
+  useEffect(() => {
+    if (routeCoords.length > 1 && mapRef.current) {
       mapRef.current.fitToCoordinates(routeCoords, {
-        edgePadding: { top: 60, right: 40, bottom: 60, left: 40 },
+        edgePadding: { top: 80, right: 80, bottom: 100, left: 80 },
         animated: true,
       });
     }
   }, [routeCoords]);
+
+  if (isPending) return <Text>Loading...</Text>;
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Top: Start */}
       <View style={styles.rowBox}>
         <Text style={styles.label}>Start</Text>
-        <Text style={styles.value}>{START.latitude.toFixed(6)},{" "}{START.longitude.toFixed(6)}</Text>
+        {Number.isFinite(START.latitude) && Number.isFinite(START.longitude) ? (
+          <Text style={styles.value}>
+            {START.latitude?.toFixed(6)}, {START.longitude?.toFixed(6)}
+          </Text>
+        ) : (
+          <Text style={styles.value}>—</Text>
+        )}
       </View>
       {/* Below: End */}
       <View style={styles.rowBox}>
         <Text style={styles.label}>End</Text>
-        <Text style={styles.value}>{END.latitude.toFixed(6)},{" "}{END.longitude.toFixed(6)}</Text>
+        {Number.isFinite(END.latitude) && Number.isFinite(END.longitude) ? (
+          <Text style={styles.value}>
+            {END.latitude?.toFixed(6)}, {END.longitude?.toFixed(6)}
+          </Text>
+        ) : (
+          <Text style={styles.value}>—</Text>
+        )}
       </View>
 
       {/* Map */}
       <View style={styles.mapContainer}>
-        <MapView
+        <OpenStreetMap
           style={{ flex: 1 }}
           initialRegion={initialRegion}
-          provider={PROVIDER_DEFAULT}
           mapType="none"
           pitchEnabled
           rotateEnabled
@@ -76,23 +202,47 @@ export default function RouteScreen() {
           zoomEnabled
           ref={mapRef}
         >
-          <UrlTile urlTemplate={OSM_TILE_TEMPLATE} maximumZ={19} tileSize={256} shouldReplaceMapContent zIndex={0} />
-          <Marker coordinate={START} title="Start" />
-          <Marker coordinate={END} title="End" />
-          {routeCoords.length > 0 && (
-            <Polyline coordinates={routeCoords} strokeWidth={4} strokeColor="#2e86de" />
+          {Number.isFinite(START.latitude) && Number.isFinite(START.longitude) && (
+            <Marker
+              coordinate={{
+                latitude: START.latitude as number,
+                longitude: START.longitude as number,
+              }}
+              title="Start"
+            />
           )}
-        </MapView>
+          {Number.isFinite(END.latitude) && Number.isFinite(END.longitude) && (
+            <Marker
+              coordinate={{
+                latitude: END.latitude as number,
+                longitude: END.longitude as number,
+              }}
+              title="End"
+            />
+          )}
+          {routeCoords.length > 0 && (
+            <Polyline
+              coordinates={routeCoords}
+              strokeWidth={4}
+              strokeColor="#2e86de"
+            />
+          )}
+        </OpenStreetMap>
         {/* OSM attribution */}
         <View style={styles.attributionContainer} pointerEvents="none">
           <View style={styles.attributionBadge}>
-            <Text style={styles.attributionText}>© OpenStreetMap contributors</Text>
+            <Text style={styles.attributionText}>
+              © OpenStreetMap contributors
+            </Text>
           </View>
         </View>
       </View>
 
       {/* Search Places button */}
-      <TouchableOpacity style={styles.button} onPress={() => router.push({ pathname: "/places", params: { url } })}>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => router.push({ pathname: "/places", params: { url: mapLink } })}
+      >
         <Text style={styles.buttonText}>Search Places</Text>
       </TouchableOpacity>
     </SafeAreaView>
@@ -154,5 +304,3 @@ const styles = StyleSheet.create({
     color: "#2d3436",
   },
 });
-
-

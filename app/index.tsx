@@ -5,7 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const IndexScreen = () => {
   const router = useRouter();
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState("https://maps.app.goo.gl/iM6y5bicQRJUuYRV8");
 
   const onSearch = () => {
     if (!url.trim()) return;

@@ -1,8 +1,9 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import MapView, { Marker, PROVIDER_DEFAULT, UrlTile } from "react-native-maps";
+import { Marker } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
+import OpenStreetMap from "../components/OpenStreetMap";
 
 const OSM_TILE_TEMPLATE = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
@@ -51,8 +52,7 @@ export default function PlacesScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.mapContainer}>
-        <MapView style={{ flex: 1 }} initialRegion={initialRegion} provider={PROVIDER_DEFAULT} mapType="none">
-          <UrlTile urlTemplate={OSM_TILE_TEMPLATE} maximumZ={19} tileSize={256} shouldReplaceMapContent zIndex={0} />
+        <OpenStreetMap style={{ flex: 1 }} initialRegion={initialRegion} mapType="none">
           {samplePlaces.map((p) => (
             <Marker
               key={p.id}
@@ -62,7 +62,7 @@ export default function PlacesScreen() {
               onPress={() => toggle(p.id)}
             />
           ))}
-        </MapView>
+        </OpenStreetMap>
       </View>
       <View style={styles.listHeader}>
         <Text style={styles.listHeaderText}>Select Places</Text>
