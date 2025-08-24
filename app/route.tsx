@@ -9,9 +9,11 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-import MapView, { Marker, Polyline } from "react-native-maps";
+import MapView, { Polyline } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import OpenStreetMap from "../components/OpenStreetMap";
+import EndMarker from "../components/marker/EndMarker";
+import StartMarker from "../components/marker/StartMarker";
 
 export default function RouteScreen() {
   const router = useRouter();
@@ -320,7 +322,7 @@ export default function RouteScreen() {
         >
           {Number.isFinite(START.latitude) &&
             Number.isFinite(START.longitude) && (
-              <Marker
+              <StartMarker
                 draggable
                 anchor={{ x: 0.5, y: 1 }}
                 onDragEnd={(e) => {
@@ -332,14 +334,10 @@ export default function RouteScreen() {
                   longitude: START.longitude as number,
                 }}
                 title="Start"
-              >
-                <View style={[styles.markerContainer, styles.markerStart]}>
-                  <Ionicons name="navigate" size={18} color="#2e86de" />
-                </View>
-              </Marker>
+              />
             )}
           {Number.isFinite(END.latitude) && Number.isFinite(END.longitude) && (
-            <Marker
+            <EndMarker
               draggable
               anchor={{ x: 0.5, y: 1 }}
               onDragEnd={(e) => {
@@ -351,11 +349,7 @@ export default function RouteScreen() {
                 longitude: END.longitude as number,
               }}
               title="End"
-            >
-              <View style={[styles.markerContainer, styles.markerEnd]}>
-                <Ionicons name="location" size={18} color="#d63031" />
-              </View>
-            </Marker>
+            />
           )}
           {routeCoords.length > 0 && (
             <Polyline
@@ -526,21 +520,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   bottomPrimaryText: { color: "#fff", fontWeight: "700" },
-  markerContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 6,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  markerStart: {
-    borderWidth: 1,
-    borderColor: "#2e86de",
-  },
-  markerEnd: {
-    borderWidth: 1,
-    borderColor: "#d63031",
-  },
 });
