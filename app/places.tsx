@@ -1,4 +1,4 @@
-import { getRouteWithWaypoints } from "@/api/index";
+import { getPlaceDetails, getPlaces, getRouteWithWaypoints } from "@/api/index";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -23,6 +23,7 @@ type Place = {
   longitude: number;
   imageUrl: string;
   description: string;
+  wikidata?: string;
 };
 
 export default function PlacesScreen() {
@@ -34,40 +35,6 @@ export default function PlacesScreen() {
     elat?: string;
     elng?: string;
   }>();
-
-  // Placeholder places. Next iteration: fetch from backend /api/places
-  const samplePlaces: Place[] = useMemo(
-    () => [
-      {
-        id: "p1",
-        name: "Viewpoint A",
-        latitude: 10.4,
-        longitude: 76.4,
-        imageUrl:
-          "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=800",
-        description: "Panoramic lookout with lush greenery and misty hills.",
-      },
-      {
-        id: "p2",
-        name: "Museum B",
-        latitude: 10.35,
-        longitude: 76.55,
-        imageUrl:
-          "https://images.unsplash.com/photo-1549893079-842e6b5d1ec9?w=800",
-        description: "Local history museum showcasing regional culture.",
-      },
-      {
-        id: "p3",
-        name: "Park C",
-        latitude: 10.32,
-        longitude: 76.7,
-        imageUrl:
-          "https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=800",
-        description: "Shady riverside park perfect for picnics and walks.",
-      },
-    ],
-    []
-  );
 
   const mapRef = useRef<MapView | null>(null);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
@@ -99,15 +66,74 @@ export default function PlacesScreen() {
     longitudeDelta: 0.8,
   };
 
+  const { data: placesResp } = useQuery({
+    queryKey: ["places", start, end],
+    queryFn: () =>
+      getPlaces({
+        start: { coordinates: { lat: Number(slat), lng: Number(slng) } } as any,
+        end: { coordinates: { lat: Number(elat), lng: Number(elng) } } as any,
+      }),
+    enabled:
+      Number.isFinite(start.latitude) &&
+      Number.isFinite(start.longitude) &&
+      Number.isFinite(end.latitude) &&
+      Number.isFinite(end.longitude),
+  });
+
+  const places: Place[] = useMemo(() => {
+    const arr = placesResp?.places ?? [];
+    return arr
+      .map((p: any) => ({
+        id: String(p.id),
+        name: p.name || p.tags?.name || "Unnamed",
+        latitude: p.coordinates?.lat,
+        longitude: p.coordinates?.lng,
+        imageUrl: "",
+        description: p.tags?.tourism || "Attraction",
+        wikidata: p.tags?.wikidata,
+      }))
+      .filter((p: Place) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude));
+  }, [placesResp]);
+
+  const { data: detailsMap } = useQuery({
+    queryKey: [
+      "place-details",
+      (places || []).map((p) => p.wikidata).filter(Boolean),
+    ],
+    queryFn: async () => {
+      const ids = (places || []).map((p) => p.wikidata).filter(Boolean) as string[];
+      const results = await Promise.all(ids.map((id) => getPlaceDetails(id)));
+      const map: Record<string, any> = {};
+      ids.forEach((id, i) => {
+        map[id] = results[i];
+      });
+      return map;
+    },
+    enabled: (places || []).some((p) => !!p.wikidata),
+  });
+
+  const enrichedPlaces: Place[] = useMemo(() => {
+    return (places || []).map((p) => {
+      const det = p.wikidata ? (detailsMap as any)?.[p.wikidata] : undefined;
+      return {
+        ...p,
+        imageUrl: p.imageUrl || det?.thumbnail || `https://picsum.photos/seed/${p.id}/600/400`,
+        description: det?.extract || p.description,
+      };
+    });
+  }, [places, detailsMap]);
+
+  const width = Dimensions.get("window").width;
+
   const waypoints = useMemo(
     () =>
       Object.keys(selected)
         .filter((id) => selected[id])
         .map((id) => {
-          const p = samplePlaces.find((sp) => sp.id === id)!;
+          const p = enrichedPlaces.find((sp) => sp.id === id)!;
           return `${p.latitude},${p.longitude}`;
         }),
-    [selected, samplePlaces]
+    [selected, enrichedPlaces]
   );
 
   const { data: routeData } = useQuery({
@@ -142,12 +168,7 @@ export default function PlacesScreen() {
       ) as Array<{ latitude: number; longitude: number }>;
   }, [routeData]);
 
-  const selectedList = samplePlaces.filter((p) => selected[p.id]);
-  const width = Dimensions.get("window").width;
-
   const onGenerate = () => {
-    // Next iteration: send to backend /api/generate-route with selected waypoints
-    // For now, just pop back
     router.back();
   };
 
@@ -189,7 +210,7 @@ export default function PlacesScreen() {
               </View>
             </Marker>
           )}
-          {samplePlaces.map((p, idx) => (
+          {enrichedPlaces.map((p, idx) => (
             <Marker
               key={p.id}
               coordinate={{ latitude: p.latitude, longitude: p.longitude }}
@@ -211,7 +232,7 @@ export default function PlacesScreen() {
       <Carousel
         width={width * 0.9}
         height={180}
-        data={samplePlaces}
+        data={enrichedPlaces}
         mode="parallax"
         modeConfig={{
           parallaxScrollingScale: 0.9,
@@ -247,7 +268,7 @@ export default function PlacesScreen() {
         )}
         onSnapToItem={(index) => {
           setActiveIndex(index);
-          const p = samplePlaces[index];
+          const p = enrichedPlaces[index];
           if (p && mapRef.current) {
             mapRef.current.animateCamera({
               center: { latitude: p.latitude, longitude: p.longitude },
@@ -297,42 +318,6 @@ const styles = StyleSheet.create({
   markerEnd: {
     borderWidth: 1,
     borderColor: "#d63031",
-  },
-  listHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  listHeaderText: {
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  count: {
-    color: "#666",
-  },
-  placeRow: {
-    backgroundColor: "#f7f7f7",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  placeName: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: "#2e86de",
-  },
-  checkboxChecked: {
-    backgroundColor: "#2e86de",
   },
   button: {
     backgroundColor: "#2e86de",
