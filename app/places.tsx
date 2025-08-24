@@ -213,11 +213,13 @@ export default function PlacesScreen() {
           )}
           {enrichedPlaces.map((p, idx) => (
             <WaypointMarker
+              key={`${p.id}-${idx}`}
               text={`${idx + 1}`}
               coordinate={{
                 latitude: p.latitude,
                 longitude: p.longitude,
               }}
+              focused={activeIndex === idx}
             />
           ))}
           {routeCoords.length > 0 && (

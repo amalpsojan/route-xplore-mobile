@@ -4,20 +4,22 @@ import { Marker } from "react-native-maps";
 
 type MarkerProps = React.ComponentProps<typeof Marker> & {
   text: string;
+  focused?: boolean;
 };
 
-const WaypointMarker: React.FC<MarkerProps> = ({ text, ...props }) => {
+const WaypointMarker: React.FC<MarkerProps> = ({ text, focused = false, zIndex, ...props }) => {
+  const computedZIndex = typeof zIndex === "number" ? zIndex : focused ? 1000 : 1;
   return (
-    <Marker {...props}>
-      <MarkerIcon text={text} />
+    <Marker {...props} zIndex={computedZIndex}>
+      <MarkerIcon text={text} focused={focused} />
     </Marker>
   );
 };
 
-const MarkerIcon = ({ text }: { text: string }) => {
+const MarkerIcon = ({ text, focused }: { text: string; focused: boolean }) => {
   return (
-    <View style={styles.container}>
-      <Text style={styles.text}>{text}</Text>
+    <View style={[styles.container, focused && styles.focused]}>
+      <Text style={[styles.text, focused && styles.focusedText]}>{text}</Text>
     </View>
   );
 };
@@ -38,6 +40,13 @@ const styles = StyleSheet.create({
   text: {
     color: "#d63031",
     fontWeight: "700",
+  },
+  focused: {
+    borderColor: "#2e86de",
+    zIndex: 1000,
+  },
+  focusedText: {
+    color: "#2e86de",
   },
 });
 
