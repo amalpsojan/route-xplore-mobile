@@ -240,7 +240,11 @@ export default function PlacesScreen() {
             description={item.description}
             selected={!!selected[item.id]}
             onToggle={() => toggle(item.id)}
-            onViewDetails={item.wikidata ? () => router.push({ pathname: "/place-details", params: { wiki: item.wikidata } }) : undefined}
+            onPress={() => {
+              if (item.wikidata) {
+                router.push({ pathname: "/place-details", params: { wiki: item.wikidata } });
+              }
+            }}
           />
         )}
         onSnapToItem={(index) => {

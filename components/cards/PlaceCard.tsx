@@ -1,6 +1,7 @@
 import { BlurView } from "expo-blur";
 import React from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
+import { State, TapGestureHandler } from "react-native-gesture-handler";
 
 type Props = {
   name: string;
@@ -8,7 +9,7 @@ type Props = {
   description: string;
   selected: boolean;
   onToggle: () => void;
-  onViewDetails?: () => void;
+  onPress: () => void;
 };
 
 const PlaceCard: React.FC<Props> = ({
@@ -17,35 +18,57 @@ const PlaceCard: React.FC<Props> = ({
   description,
   selected,
   onToggle,
-  onViewDetails,
+  onPress,
 }) => {
+  const handleTap = (event: any) => {
+    if (event.nativeEvent.state === State.ACTIVE) {
+      onPress();
+    }
+  };
+
+  const handleSelectTap = (event: any) => {
+    if (event.nativeEvent.state === State.ACTIVE) {
+      onToggle();
+    }
+  };
+
   return (
     <View style={styles.cardContainer}>
-      <BlurView intensity={25} tint="dark" style={styles.card}>
-        <Image source={{ uri: imageUrl }} style={styles.cardImage} />
-        <BlurView intensity={5} tint="dark" style={styles.cardBody}>
-          <Text style={styles.cardTitle}>{name}</Text>
-          <Text style={styles.cardDesc} numberOfLines={2}>
-            {description}
-          </Text>
-          <BlurView 
-            intensity={selected ? 20 : 10} 
-            tint={selected ? "light" : "dark"} 
-            style={[styles.cardBtn, selected && styles.cardBtnActive]}
-          >
-            <TouchableOpacity onPress={onToggle} style={styles.cardBtnTouch}>
-              <Text style={[styles.cardBtnText, selected && styles.cardBtnTextActive]}>
-                {selected ? "Selected" : "Select"}
+      <TapGestureHandler
+        onHandlerStateChange={handleTap}
+        maxDeltaX={10}
+        maxDeltaY={10}
+        minPointers={1}
+      >
+        <View style={styles.cardTouchable}>
+          <BlurView intensity={25} tint="dark" style={styles.card}>
+            <Image source={{ uri: imageUrl }} style={styles.cardImage} />
+            <BlurView intensity={5} tint="dark" style={styles.cardBody}>
+              <Text style={styles.cardTitle}>{name}</Text>
+              <Text style={styles.cardDesc} numberOfLines={2}>
+                {description}
               </Text>
-            </TouchableOpacity>
+              <BlurView 
+                intensity={10} 
+                tint={"dark"} 
+                style={[styles.cardBtn]}
+              >
+                <TapGestureHandler
+                  onHandlerStateChange={handleSelectTap}
+                  maxDeltaX={5}
+                  maxDeltaY={5}
+                >
+                  <View style={styles.cardBtnTouch}>
+                    <Text style={[styles.cardBtnText]}>
+                      {selected ? "Selected" : "Select"}
+                    </Text>
+                  </View>
+                </TapGestureHandler>
+              </BlurView>
+            </BlurView>
           </BlurView>
-          {onViewDetails ? (
-            <TouchableOpacity onPress={onViewDetails} style={styles.linkBtn}>
-              <Text style={styles.linkText}>View details</Text>
-            </TouchableOpacity>
-          ) : null}
-        </BlurView>
-      </BlurView>
+        </View>
+      </TapGestureHandler>
     </View>
   );
 };
@@ -53,6 +76,9 @@ const PlaceCard: React.FC<Props> = ({
 const styles = StyleSheet.create({
   cardContainer: {
     marginHorizontal: 12,
+  },
+  cardTouchable: {
+    borderRadius: 20,
   },
   card: {
     flexDirection: "row",
@@ -115,17 +141,7 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontWeight: "800",
   },
-  linkBtn: { 
-    marginTop: 6,
-    paddingVertical: 6,
-  },
-  linkText: { 
-    color: "#1a5490", 
-    fontWeight: "700",
-    fontSize: 14,
-    textDecorationLine: "underline",
-    textDecorationColor: "rgba(26, 84, 144, 0.6)",
-  },
+
 });
 
 export default PlaceCard;
