@@ -40,6 +40,8 @@ type RouteResponse = {
     lat: number;
     lng: number;
   }[];
+  start: StartEndPoints;
+  end: StartEndPoints;
 };
 
 export const getRoute = async ({

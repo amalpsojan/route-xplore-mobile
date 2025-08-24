@@ -68,6 +68,55 @@ export default function RouteScreen() {
     longitudeDelta: 40,
   };
 
+  // Track initial coordinates to control label precedence
+  const initialStartRef = useRef<LatLngOpt>({
+    latitude: slat ? Number(slat) : undefined,
+    longitude: slng ? Number(slng) : undefined,
+  });
+  const initialEndRef = useRef<LatLngOpt>({
+    latitude: elat ? Number(elat) : undefined,
+    longitude: elng ? Number(elng) : undefined,
+  });
+  const hasEditedStart = useMemo(() => {
+    const ilat = initialStartRef.current.latitude;
+    const ilng = initialStartRef.current.longitude;
+    return (
+      Number.isFinite(start.latitude) &&
+      Number.isFinite(start.longitude) &&
+      (start.latitude !== ilat || start.longitude !== ilng)
+    );
+  }, [start]);
+  const hasEditedEnd = useMemo(() => {
+    const ilat = initialEndRef.current.latitude;
+    const ilng = initialEndRef.current.longitude;
+    return (
+      Number.isFinite(end.latitude) &&
+      Number.isFinite(end.longitude) &&
+      (end.latitude !== ilat || end.longitude !== ilng)
+    );
+  }, [end]);
+
+  const startLabel = useMemo(() => {
+    // Before edit: prefer sname; After edit: prefer API name
+    if (!hasEditedStart && sname) return String(sname);
+    const apiName = (routeData as any)?.start?.name;
+    if (hasEditedStart && apiName) return String(apiName);
+    if (Number.isFinite(START.latitude) && Number.isFinite(START.longitude)) {
+      return `${(START.latitude as number).toFixed(6)}, ${(START.longitude as number).toFixed(6)}`;
+    }
+    return "—";
+  }, [sname, routeData, START, hasEditedStart]);
+
+  const endLabel = useMemo(() => {
+    if (!hasEditedEnd && ename) return String(ename);
+    const apiName = (routeData as any)?.end?.name;
+    if (hasEditedEnd && apiName) return String(apiName);
+    if (Number.isFinite(END.latitude) && Number.isFinite(END.longitude)) {
+      return `${(END.latitude as number).toFixed(6)}, ${(END.longitude as number).toFixed(6)}`;
+    }
+    return "—";
+  }, [ename, routeData, END, hasEditedEnd]);
+
   // Build route coordinates from API response (expect GeoJSON LineString [lng, lat])
   const routeCoords = useMemo(() => {
     const coords: any = routeData?.geometry?.coordinates;
@@ -126,24 +175,12 @@ export default function RouteScreen() {
       {/* Top: Start */}
       <View style={styles.rowBox}>
         <Text style={styles.label}>Start</Text>
-        {Number.isFinite(START.latitude) && Number.isFinite(START.longitude) ? (
-          <Text style={styles.value}>
-            {START.latitude?.toFixed(6)}, {START.longitude?.toFixed(6)}
-          </Text>
-        ) : (
-          <Text style={styles.value}>—</Text>
-        )}
+        <Text style={styles.value}>{startLabel}</Text>
       </View>
       {/* Below: End */}
       <View style={styles.rowBox}>
         <Text style={styles.label}>End</Text>
-        {Number.isFinite(END.latitude) && Number.isFinite(END.longitude) ? (
-          <Text style={styles.value}>
-            {END.latitude?.toFixed(6)}, {END.longitude?.toFixed(6)}
-          </Text>
-        ) : (
-          <Text style={styles.value}>—</Text>
-        )}
+        <Text style={styles.value}>{endLabel}</Text>
       </View>
 
       {/* Edit controls */}
