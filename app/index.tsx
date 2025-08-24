@@ -1,16 +1,60 @@
+import { parseLink } from "@/api/index";
+import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import {
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const IndexScreen = () => {
   const router = useRouter();
   const [url, setUrl] = useState("https://maps.app.goo.gl/iM6y5bicQRJUuYRV8");
 
-  const onSearch = () => {
-    if (!url.trim()) return;
-    router.push({ pathname: "/route", params: { url } });
-  };
+  const { mutateAsync, isPending, error, reset } = useMutation({
+    mutationFn: (link: string) => parseLink(link),
+  });
+
+  const onSearch = useCallback(async () => {
+    const { end, start } = await mutateAsync(url.trim());
+
+    const startLat = Number(start.coordinates.lat);
+    const startLng = Number(start.coordinates.lng);
+    const startName = start.name;
+    const endLat = Number(end.coordinates.lat);
+    const endLng = Number(end.coordinates.lng);
+    const endName = end.name;
+
+    if (
+      !Number.isFinite(startLat) ||
+      !Number.isFinite(startLng) ||
+      !Number.isFinite(endLat) ||
+      !Number.isFinite(endLng)
+    ) {
+      throw new Error("Could not resolve start/end coordinates from link");
+    }
+
+    router.push({
+      pathname: "/route",
+      params: {
+        slat: String(startLat),
+        slng: String(startLng),
+        sname: startName,
+        elat: String(endLat),
+        elng: String(endLng),
+        ename: endName,
+      },
+    });
+  }, [mutateAsync, router]);
+
+  const isButtonDisabled = useMemo(
+    () => isPending || !url.trim(),
+    [isPending, url]
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -28,10 +72,23 @@ const IndexScreen = () => {
           keyboardType="url"
           style={styles.input}
         />
-        <TouchableOpacity style={styles.button} onPress={onSearch}>
-          <Text style={styles.buttonText}>Search</Text>
+        <TouchableOpacity
+          style={[styles.button, { opacity: isButtonDisabled ? 0.5 : 1 }]}
+          onPress={onSearch}
+          disabled={isButtonDisabled}
+        >
+          <Text style={styles.buttonText}>
+            {isPending ? "Parsing..." : "Search"}
+          </Text>
         </TouchableOpacity>
       </View>
+      {error ? (
+        <View style={{ marginTop: 8 }}>
+          <Text style={{ color: "#c0392b" }}>
+            {(error as any)?.message || "Failed to parse link"}
+          </Text>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 };

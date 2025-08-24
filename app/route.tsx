@@ -1,4 +1,4 @@
-import { parseLink } from "@/api";
+import { getRoute } from "@/api/index";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef } from "react";
@@ -15,30 +15,43 @@ import OpenStreetMap from "../components/OpenStreetMap";
 
 export default function RouteScreen() {
   const router = useRouter();
-  const { url: mapLink } = useLocalSearchParams<{ url?: string }>();
+  const { slat, slng, elat, elng, sname, ename } = useLocalSearchParams<{
+    slat?: string;
+    slng?: string;
+    elat?: string;
+    elng?: string;
+    sname?: string;
+    ename?: string;
+  }>();
 
-  const { data: parsedLink, isPending } = useQuery({
-    queryKey: ["parse-link", mapLink],
-    queryFn: () => parseLink(mapLink as string),
-    enabled: !!mapLink,
+  const start = useMemo(
+    () => ({
+      latitude: slat ? Number(slat) : undefined,
+      longitude: slng ? Number(slng) : undefined,
+    }),
+    [slat, slng]
+  );
+  const end = useMemo(
+    () => ({
+      latitude: elat ? Number(elat) : undefined,
+      longitude: elng ? Number(elng) : undefined,
+    }),
+    [elat, elng]
+  );
+
+  const { data: routeData, isPending } = useQuery({
+    queryKey: ["get-route", start, end],
+    queryFn: () =>
+      getRoute({
+        start: `${start.latitude},${start.longitude}`,
+        end: `${end.latitude},${end.longitude}`,
+        geometry: "geojson",
+      }),
+    enabled: Boolean(start.latitude) && Boolean(start.longitude) && Boolean(end.latitude) && Boolean(end.longitude),
   });
 
-  const START = useMemo(() => {
-    const lat = parsedLink?.start?.coordinates?.lat;
-    const lng = parsedLink?.start?.coordinates?.lng;
-    return {
-      latitude: typeof lat === "string" ? Number(lat) : lat,
-      longitude: typeof lng === "string" ? Number(lng) : lng,
-    } as { latitude?: number; longitude?: number };
-  }, [parsedLink]);
-  const END = useMemo(() => {
-    const lat = parsedLink?.end?.coordinates?.lat;
-    const lng = parsedLink?.end?.coordinates?.lng;
-    return {
-      latitude: typeof lat === "string" ? Number(lat) : lat,
-      longitude: typeof lng === "string" ? Number(lng) : lng,
-    } as { latitude?: number; longitude?: number };
-  }, [parsedLink]);
+  const START = start;
+  const END = end;
 
   const mapRef = useRef<MapView | null>(null);
 
@@ -49,43 +62,12 @@ export default function RouteScreen() {
     longitudeDelta: 40,
   };
 
-  // Decode Google-encoded polyline
-  function decodePolyline(points: string, precision: number = 5) {
-    let index = 0;
-    const len = points.length;
-    let lat = 0;
-    let lng = 0;
-    const coordinates: Array<{ latitude: number; longitude: number }> = [];
-    const factor = Math.pow(10, precision);
-    while (index < len) {
-      let b: number;
-      let shift = 0;
-      let result = 0;
-      do {
-        b = points.charCodeAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      const dlat = (result & 1) ? ~(result >> 1) : (result >> 1);
-      lat += dlat;
-      shift = 0;
-      result = 0;
-      do {
-        b = points.charCodeAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      const dlng = (result & 1) ? ~(result >> 1) : (result >> 1);
-      lng += dlng;
-      coordinates.push({ latitude: lat / factor, longitude: lng / factor });
-    }
-    return coordinates;
-  }
+  
 
   // Build route coordinates from API response (supports multiple shapes)
   const routeCoords = useMemo(() => {
     const out: Array<{ latitude: number; longitude: number }> = [];
-    const pl: any = parsedLink;
+    const pl: any = routeData;
     if (!pl) return out;
 
     // 1) GeoJSON LineString: [lng, lat]
@@ -96,7 +78,8 @@ export default function RouteScreen() {
           const [lng, lat] = pair;
           const la = typeof lat === "string" ? Number(lat) : lat;
           const lo = typeof lng === "string" ? Number(lng) : lng;
-          if (Number.isFinite(la) && Number.isFinite(lo)) out.push({ latitude: la, longitude: lo });
+          if (Number.isFinite(la) && Number.isFinite(lo))
+            out.push({ latitude: la, longitude: lo });
         }
       }
     }
@@ -110,40 +93,46 @@ export default function RouteScreen() {
             const [laRaw, loRaw] = item;
             const la = typeof laRaw === "string" ? Number(laRaw) : laRaw;
             const lo = typeof loRaw === "string" ? Number(loRaw) : loRaw;
-            if (Number.isFinite(la) && Number.isFinite(lo)) out.push({ latitude: la, longitude: lo });
+            if (Number.isFinite(la) && Number.isFinite(lo))
+              out.push({ latitude: la, longitude: lo });
           } else if (item && typeof item === "object") {
-            const la = typeof item.lat === "string" ? Number(item.lat) : (item.lat ?? item.latitude);
-            const lo = typeof item.lng === "string" ? Number(item.lng) : (item.lng ?? item.lon ?? item.long ?? item.longitude);
-            if (Number.isFinite(la) && Number.isFinite(lo)) out.push({ latitude: la as number, longitude: lo as number });
+            const la =
+              typeof item.lat === "string"
+                ? Number(item.lat)
+                : item.lat ?? item.latitude;
+            const lo =
+              typeof item.lng === "string"
+                ? Number(item.lng)
+                : item.lng ?? item.lon ?? item.long ?? item.longitude;
+            if (Number.isFinite(la) && Number.isFinite(lo))
+              out.push({ latitude: la as number, longitude: lo as number });
           }
         }
       }
     }
 
-    // 3) Encoded polyline (precision 5 / 6)
-    if (out.length === 0) {
-      const p5 = pl?.overview_polyline?.points || pl?.polyline || pl?.route?.polyline;
-      if (typeof p5 === "string" && p5.length > 0) {
-        try { return decodePolyline(p5, 5); } catch {}
-      }
-      const p6 = pl?.polyline6 || pl?.route?.polyline6;
-      if (typeof p6 === "string" && p6.length > 0) {
-        try { return decodePolyline(p6, 6); } catch {}
-      }
-    }
+    
 
     return out;
-  }, [parsedLink]);
+  }, [routeData]);
 
   // Fit map once both coordinates are available
   useEffect(() => {
-    const hasStart = Number.isFinite(START.latitude) && Number.isFinite(START.longitude);
-    const hasEnd = Number.isFinite(END.latitude) && Number.isFinite(END.longitude);
+    const hasStart =
+      Number.isFinite(START.latitude) && Number.isFinite(START.longitude);
+    const hasEnd =
+      Number.isFinite(END.latitude) && Number.isFinite(END.longitude);
     if (hasStart && hasEnd && mapRef.current) {
       mapRef.current.fitToCoordinates(
         [
-          { latitude: START.latitude as number, longitude: START.longitude as number },
-          { latitude: END.latitude as number, longitude: END.longitude as number },
+          {
+            latitude: START.latitude as number,
+            longitude: START.longitude as number,
+          },
+          {
+            latitude: END.latitude as number,
+            longitude: END.longitude as number,
+          },
         ],
         {
           edgePadding: { top: 80, right: 80, bottom: 100, left: 80 },
@@ -202,15 +191,16 @@ export default function RouteScreen() {
           zoomEnabled
           ref={mapRef}
         >
-          {Number.isFinite(START.latitude) && Number.isFinite(START.longitude) && (
-            <Marker
-              coordinate={{
-                latitude: START.latitude as number,
-                longitude: START.longitude as number,
-              }}
-              title="Start"
-            />
-          )}
+          {Number.isFinite(START.latitude) &&
+            Number.isFinite(START.longitude) && (
+              <Marker
+                coordinate={{
+                  latitude: START.latitude as number,
+                  longitude: START.longitude as number,
+                }}
+                title="Start"
+              />
+            )}
           {Number.isFinite(END.latitude) && Number.isFinite(END.longitude) && (
             <Marker
               coordinate={{
@@ -241,7 +231,12 @@ export default function RouteScreen() {
       {/* Search Places button */}
       <TouchableOpacity
         style={styles.button}
-        onPress={() => router.push({ pathname: "/places", params: { url: mapLink } })}
+        onPress={() =>
+          router.push({
+            pathname: "/places",
+            params: { slat, slng, elat, elng },
+          })
+        }
       >
         <Text style={styles.buttonText}>Search Places</Text>
       </TouchableOpacity>
