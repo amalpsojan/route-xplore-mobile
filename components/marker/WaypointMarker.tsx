@@ -7,10 +7,9 @@ type MarkerProps = React.ComponentProps<typeof Marker> & {
   focused?: boolean;
 };
 
-const WaypointMarker: React.FC<MarkerProps> = ({ text, focused = false, zIndex, ...props }) => {
-  const computedZIndex = typeof zIndex === "number" ? zIndex : focused ? 1000 : 1;
+const WaypointMarker: React.FC<MarkerProps> = ({ text, focused = false, ...props }) => {
   return (
-    <Marker {...props} zIndex={computedZIndex}>
+    <Marker {...props}>
       <MarkerIcon text={text} focused={focused} />
     </Marker>
   );
@@ -43,7 +42,7 @@ const styles = StyleSheet.create({
   },
   focused: {
     borderColor: "#2e86de",
-    zIndex: 1000,
+    // zIndex: 1000,
   },
   focusedText: {
     color: "#2e86de",
