@@ -1,5 +1,4 @@
 import { getPlaceDetails, getPlaces, getRouteWithWaypoints } from "@/api/index";
-import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useRef, useState } from "react";
@@ -10,11 +9,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker, Polyline } from "react-native-maps";
+import MapView, { Polyline } from "react-native-maps";
 import Carousel from "react-native-reanimated-carousel";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import OpenStreetMap from "../components/OpenStreetMap";
 import PlaceCard from "../components/cards/PlaceCard";
+import EndMarker from "../components/marker/EndMarker";
+import StartMarker from "../components/marker/StartMarker";
+import WaypointMarker from "../components/marker/WaypointMarker";
 
 type Place = {
   id: string;
@@ -191,46 +193,31 @@ export default function PlacesScreen() {
         >
           {Number.isFinite(start.latitude) &&
             Number.isFinite(start.longitude) && (
-              <Marker
+              <StartMarker
                 anchor={{ x: 0.5, y: 1 }}
                 coordinate={{
                   latitude: start.latitude as number,
                   longitude: start.longitude as number,
                 }}
                 title="Start"
-              >
-                <View style={[styles.markerContainer, styles.markerStart]}>
-                  <Ionicons name="navigate" size={18} color="#2e86de" />
-                </View>
-              </Marker>
+              />
             )}
           {Number.isFinite(end.latitude) && Number.isFinite(end.longitude) && (
-            <Marker
+            <EndMarker
               anchor={{ x: 0.5, y: 1 }}
               coordinate={{
                 latitude: end.latitude as number,
                 longitude: end.longitude as number,
               }}
-              title="End"
-            >
-              <View style={[styles.markerContainer, styles.markerEnd]}>
-                <Ionicons name="location" size={18} color="#d63031" />
-              </View>
-            </Marker>
+            />
           )}
           {enrichedPlaces.map((p, idx) => (
-            <Marker
-              key={p.id}
-              coordinate={{ latitude: p.latitude, longitude: p.longitude }}
-              title={p.name}
-              pinColor={
-                selected[p.id]
-                  ? "#2e86de"
-                  : idx === activeIndex
-                  ? "#e67e22"
-                  : undefined
-              }
-              onPress={() => toggle(p.id)}
+            <WaypointMarker
+              text={`${idx + 1}`}
+              coordinate={{
+                latitude: p.latitude,
+                longitude: p.longitude,
+              }}
             />
           ))}
           {routeCoords.length > 0 && (
@@ -262,7 +249,10 @@ export default function PlacesScreen() {
             onToggle={() => toggle(item.id)}
             onPress={() => {
               if (item.wikidata) {
-                router.push({ pathname: "/place-details", params: { wiki: item.wikidata } });
+                router.push({
+                  pathname: "/place-details",
+                  params: { wiki: item.wikidata },
+                });
               }
             }}
           />
@@ -303,23 +293,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 16,
     // backgroundColor: "red",
-  },
-  markerContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 6,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  markerStart: {
-    borderWidth: 1,
-    borderColor: "#2e86de",
-  },
-  markerEnd: {
-    borderWidth: 1,
-    borderColor: "#d63031",
   },
   button: {
     backgroundColor: "#2e86de",
